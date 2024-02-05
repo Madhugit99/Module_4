@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MovieToken is ERC20, Ownable {
+    event TokensTransferred(address indexed from, address indexed to, uint256 tokensTransferred);
+    event TokensRedeemed(address indexed account, uint256 tokensRedeemed, string tokenType);
+    event TokensBurned(address indexed account, uint256 tokensBurned);
+
+    mapping(string => bool) public validTokenTypes;
+    mapping(address => uint256) public userTokenBalance;
+
+    string[] public availableTokenTypes;
+
+    constructor(address initialOwner) ERC20("MovieToken", "MTK") Ownable(initialOwner) {
+        initializeTokenTypes();
+    }
+
+    function mintTokens(address to, uint256 tokens) external onlyOwner {
+        _mint(to, tokens);
+        userTokenBalance[to] += tokens;
+    }
+
+    function redeemToken(string memory tokenType, uint256 numberOfTokens) external {
+        require(validTokenTypes[tokenType], "Invalid token type selected");
+        require(userTokenBalance[msg.sender] >= numberOfTokens, "Insufficient tokens for redemption");
+
+        _burn(msg.sender, numberOfTokens);
+        userTokenBalance[msg.sender] -= numberOfTokens;
+        emit TokensRedeemed(msg.sender, numberOfTokens, tokenType);
+    }
+
+    function burnTokens(uint256 tokens) external {
+        require(userTokenBalance[msg.sender] >= tokens, "Insufficient tokens for burning");
+
+        _burn(msg.sender, tokens);
+        userTokenBalance[msg.sender] -= tokens;
+        emit TokensBurned(msg.sender, tokens);
+    }
+
+    function transferTokens(address to, uint256 tokens) external {
+        require(to != address(0), "Invalid recipient address");
+        require(userTokenBalance[msg.sender] >= tokens, "Insufficient tokens for transfer");
+
+        _transfer(msg.sender, to, tokens);
+        userTokenBalance[msg.sender] -= tokens;
+        userTokenBalance[to] += tokens;
+
+        emit TokensTransferred(msg.sender, to, tokens);
+    }
+
+    // Function to initialize token types
+    function initializeTokenTypes() internal {
+        availableTokenTypes.push("PremiumToken");
+        validTokenTypes["PremiumToken"] = true;
+
+        availableTokenTypes.push("RegularToken");
+        validTokenTypes["RegularToken"] = true;
+    }
+
+    // Function to get the available token types
+    function getAvailableTokenTypes() external view returns (string[] memory) {
+        return availableTokenTypes;
+    }
+}
